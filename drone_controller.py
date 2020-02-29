@@ -2,7 +2,7 @@
 import rospy
 from std_msgs.msg import Empty
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Twist, Point
+from geometry_msgs.msg import Twist, Point, Pose
 from tello_driver.msg import TelloStatus
 import threading
 import sys
@@ -45,8 +45,9 @@ class Tello:
         self.q   = None
         self.rpy = None
         self.theta = None
+        self.theta_start = None
 
-        self.start = Point()
+        self.start = Pose()
 
         self.rate = rospy.Rate(60)
 
@@ -59,9 +60,12 @@ class Tello:
         lock.release()
 
     def set_start(self):
-        self.start.x = self.x
-        self.start.y = self.y
-        self.start.z = self.z
+        self.start.position.x = self.x
+        self.start.position.y = self.y
+        self.start.position.z = self.z
+
+        self.start.orientation = self.q
+        self.theta_start       = tftr.euler_from_quaternion((self.q.x, self.q.y, self.q.z, self.q.w))[2]
 
     def update_odom(self, data):
         # Odometry callback function
@@ -138,8 +142,8 @@ class Tello:
 
         vel_msg = Twist()
 
-        vel_msg.linear.x = v_x
-        vel_msg.linear.y = v_y
+        vel_msg.linear.x = v_x * cos(self.theta - self.theta_start) - v_y * sin(self.theta - self.theta_start)
+        vel_msg.linear.y = v_x * sin(self.theta - self.theta_start) + v_y * cos(self.theta - self.theta_start)
         vel_msg.linear.z = v_z
 
         vel_msg.angular.x = w_x
@@ -193,12 +197,12 @@ if __name__ == '__main__':
         drone.take_off()
         rospy.sleep(7)
         drone.set_start()
-        print 'Start position : [{0}, {1}, {2}]'.format(drone.start.x, drone.start.y, drone.start.z)
+        print 'Start position : [{0}, {1}, {2}]'.format(drone.start.position.x, drone.start.position.y, drone.start.position.z)
         rospy.sleep(3)
 
         print '\n Status : {} \n'.format(drone.status)
 
-        a = Point(drone.start.x, drone.start.y, drone.start.z)
+        a = Point(drone.start.position.x, drone.start.position.y, drone.start.position.z)
         a.x += 1.0
         a.y += 0.0
         a.z -= 0.0
