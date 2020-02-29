@@ -15,7 +15,7 @@ lock = threading.Lock()
 
 FRAC_PART = 4
 
-EPSILON = 0.03
+EPSILON = 0.1
 V_MAX   = 0.4 # m/s
 W_MAX   = 0.5 # rad/s
 
@@ -56,7 +56,7 @@ class Tello:
 
         lock.release()
 
-    def set_start
+    def set_start(self):
         self.start.x = self.x
         self.start.y = self.y
         self.start.z = self.z
@@ -75,9 +75,9 @@ class Tello:
         lock.release()
 
     def linear_distance(self, goal_point):
-        return sqrt((goal_point.x - self.pose.x)**2 +
-                    (goal_point.y - self.pose.y)**2 +
-                     goal_point.z - self.pose.z)**2 )
+        return sqrt((goal_point.x - self.x)**2 +
+                    (goal_point.y - self.y)**2 +
+                    (goal_point.z - self.z)**2 )
 
     def angular_distance(self, goal_pose):
         # in oXY
@@ -94,32 +94,32 @@ class Tello:
         if vel_raw.linear.x > V_MAX:
             vel_raw.linear.x = V_MAX
         elif vel_raw.linear.x < -V_MAX:
-            vel_raw.linear.x = V_MAX
+            vel_raw.linear.x = -V_MAX
         # v_y
         if vel_raw.linear.y > V_MAX:
             vel_raw.linear.y = V_MAX
         elif vel_raw.linear.y < -V_MAX:
-            vel_raw.linear.y = V_MAX
+            vel_raw.linear.y = -V_MAX
         # v_z
         if vel_raw.linear.z > V_MAX:
             vel_raw.linear.z = V_MAX
         elif vel_raw.linear.z < -V_MAX:
-            vel_raw.linear.z = V_MAX
+            vel_raw.linear.z = -V_MAX
         # w_x
         if vel_raw.angular.x > W_MAX:
             vel_raw.angular.x = W_MAX
         elif vel_raw.angular.x < -W_MAX:
-            vel_raw.angular.x = W_MAX
+            vel_raw.angular.x = -W_MAX
         # w_y
         if vel_raw.angular.y > W_MAX:
             vel_raw.angular.y = W_MAX
         elif vel_raw.angular.y < -W_MAX:
-            vel_raw.angular.y = W_MAX
+            vel_raw.angular.y = -W_MAX
         # w_z
         if vel_raw.angular.z > W_MAX:
             vel_raw.angular.z = W_MAX
         elif vel_raw.angular.z < -W_MAX:
-            vel_raw.angular.z = W_MAX
+            vel_raw.angular.z = -W_MAX
 
         return vel_raw
 
@@ -145,18 +145,22 @@ class Tello:
 
         self.velocity_publisher.publish( self.saturation(vel_msg) )
 
-    def go_to_point(goal_point):
+    def go_to_point(self, goal_point):
         k_p = 3
 
-        err = linear_distance(goal_point)
+        err = self.linear_distance(goal_point)
         while abs(err) > EPSILON:
             v_x = k_p * (goal_point.x - self.x)
             v_y = k_p * (goal_point.y - self.y)
             v_z = k_p * (goal_point.z - self.z)
 
-            set_velocity(v_x, v_y, v_z)
+            self.set_velocity(v_x, v_y, v_z)
 
-            self.rate.sleep(1)
+
+            self.rate.sleep()
+
+            err = self.linear_distance(goal_point)
+            print 'Err: {0}, vx : {1}, vy : {2}'.format(err, v_x, v_y)
 
         self.set_velocity()
 
@@ -173,7 +177,7 @@ if __name__ == '__main__':
         print '\n Status : {} \n'.format(drone.status)
 
         a = Point(drone.start.x, drone.start.y, drone.start.z)
-        a.x += 0.5
+        a.x += 0.3
         a.y += 0.3
         a.z -= 0.2
 
