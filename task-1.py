@@ -12,9 +12,15 @@ from numpy import *
 
 lock = threading.Lock()
 
+#
+
+H       = 1.1  # m
+ANGLE   = pi/3 # rad
+DELTA_H = -0.2 # m
+
 # DEFINES
 
-FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/test_log.txt'
+FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/task_1_log.txt'
 
 FRAC_PART = 4
 
@@ -53,6 +59,7 @@ class Tello:
         self.start = Pose()
 
         self.file = open(FILE_NAME, 'w')
+        self.file.write('Input : h = {0}, theta = {1}, delta_h = {2}'.format(H, ANGLE, DELTA_H))
 
         self.rate = rospy.Rate(60)
 
@@ -224,28 +231,25 @@ if __name__ == '__main__':
         rospy.sleep(7)
         drone.set_start()
         print 'Start position : [{0}, {1}, {2}]'.format(drone.start.position.x, drone.start.position.y, drone.start.position.z)
-        rospy.sleep(3)
+        rospy.sleep(0.5)
 
         print '\n Status : {} \n'.format(drone.status)
 
-        a = Point(drone.start.position.x, drone.start.position.y, drone.start.position.z)
-        a.x += 0.4
-        a.y += 0.2
-        a.z -= 0.0
+        a = Point(0, 0, H)
+        a = drone.transform_point(a)
 
         print 'Going to point [{0}, {1}, {2}] ...'.format(a.x, a.y, a.z)
         drone.go_to_point(a)
-        rospy.sleep(5)
+        rospy.sleep(10)
 
-        drone.rotation(pi/3)
-        rospy.sleep(5)
+        drone.rotation(ANGLE)
+        rospy.sleep(10)
 
-        a.x += -0.4
-        a.y += -0.2
-        a.z -= -0.0
+        b = Point(0, 0, H + DELTA_H)
+        b = drone.transform_point(b)
 
-        drone.go_to_point(a)
-        rospy.sleep(5)
+        drone.go_to_point(b)
+        rospy.sleep(10)
 
         print 'Landing ...'
         drone.land()
