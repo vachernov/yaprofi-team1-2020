@@ -7,6 +7,7 @@ from tello_driver.msg import TelloStatus
 import threading
 import sys
 import tf.transformations as tftr
+#from bac_task.msg import CartesianTrajectory
 from numpy import *
 
 lock = threading.Lock()
@@ -48,7 +49,7 @@ class Tello:
         self.theta = None
         self.theta_start = None
 
-        self.time_start = None
+        self.time_start = -1.0
         self.start = Pose()
 
         self.file = open(FILE_NAME, 'w')
@@ -62,6 +63,21 @@ class Tello:
         self.status = data
 
         lock.release()
+
+    def cart_trajectory_callback(self, msg): ##
+        """
+        Trajectory for Robotino.
+        Gets trajectory from robotino_trajectory_generator_node and saves to self variable.
+        """
+        lock.acquire()
+        self.cart_trajectory = msg
+        lock.release()
+
+    def exists_cart_trajectory(self): ##
+        if self.cart_trajectory is not None:
+            return True
+        else:
+            return False
 
     def set_start(self):
         self.time_start = rospy.get_time()
@@ -89,7 +105,7 @@ class Tello:
 
         # Log file
 
-        self.file.write('Time from start : {0:3} X : {1} Y: {2} Z: {3} \n ', rospy.get_time()-time_start, self.x, self.y, self.z)
+        self.file.write( 'Time from start : {0:3} X : {1} Y: {2} Z: {3} \n '.format(rospy.get_time()-self.time_start, self.x, self.y, self.z) )
 
     def linear_distance(self, goal_point):
         return sqrt((goal_point.x - self.x)**2 +
@@ -215,8 +231,8 @@ if __name__ == '__main__':
         print '\n Status : {} \n'.format(drone.status)
 
         a = Point(drone.start.position.x, drone.start.position.y, drone.start.position.z)
-        a.x += 1.0
-        a.y += 0.0
+        a.x += 0.4
+        a.y += 0.2
         a.z -= 0.0
 
         print 'Going to point [{0}, {1}, {2}] ...'.format(a.x, a.y, a.z)
@@ -226,8 +242,8 @@ if __name__ == '__main__':
         drone.rotation(pi/3)
         rospy.sleep(5)
 
-        a.x += -1.0
-        a.y += -0.0
+        a.x += -0.4
+        a.y += -0.2
         a.z -= -0.0
 
         drone.go_to_point(a)
