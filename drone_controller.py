@@ -21,7 +21,7 @@ class Tello:
         # unique node
         rospy.init_node('tello_controller', anonymous=True)
 
-        self.takeoff_publisher = rospy.Publisher('/tello/take_off', Empty, queue_size=1)
+        self.takeoff_publisher = rospy.Publisher('/tello/takeoff', Empty, queue_size=1)
         self.land_publisher = rospy.Publisher('/tello/land', Empty, queue_size=1)
 
         self.velocity_publisher = rospy.Publisher('/tello/cmd_vel', Twist, queue_size=5)
@@ -71,6 +71,7 @@ class Tello:
         self.land_publisher.publish(msg)
 
     def set_velocity(self, v_x=0, v_y=0, v_z=0, w_x=0, w_y=0, w_z=0):
+
         vel_msg = Twist()
 
         vel_msg.linear.x = v_x
@@ -89,10 +90,13 @@ if __name__ == '__main__':
         rospy.Rate(1).sleep() # Setiing up a subscriber may take a while ...
 
         drone.take_off()
+        print(10)
+        rospy.sleep(5)
+        drone.land()
 
-        rospy.spin()
+        # rospy.spin()
 
         print('killing controller ...') 
-        #rospy.spin()
+    #rospy.spin()
     except rospy.ROSInterruptException:
         pass
