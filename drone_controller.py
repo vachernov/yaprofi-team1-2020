@@ -40,14 +40,12 @@ class Tello:
         # Odometry callback function
         lock.acquire()
 
-        self.odom = data
+        self.x = round(data.pose.pose.position.x, FRAC_PART)
+        self.y = round(data.pose.pose.position.y, FRAC_PART)
+        self.z = round(data.pose.pose.position.z, FRAC_PART)
 
-        self.x = round(self.odom.pose.pose.position.x, FRAC_PART)
-        self.y = round(self.odom.pose.pose.position.y, FRAC_PART)
-        self.z = round(self.odom.pose.pose.position.z, FRAC_PART)
-
-        self.q = self.odometry.pose.pose.orientation
-        self.rpy = tftr.euler_from_quaternion((q.x, q.y, q.z, q.w))  # roll pitch yaw
+        self.q = data.pose.pose.orientation
+        self.rpy = tftr.euler_from_quaternion((self.q.x, self.q.y, self.q.z, self.q.w))  # roll pitch yaw
 
         lock.release()
 
@@ -65,14 +63,16 @@ class Tello:
         return constant * (self.steering_angle(goal_pose) - self.pose.theta) 
 
     def take_off(self):
-    	self.takeoff_publisher.publish('')
+	msg = Empty()
+    	self.takeoff_publisher.publish(msg)
 
     def land(self):
-    	self.land_publisher.publish('')
+	msg = Empty()
+    	self.land_publisher.publish(msg)
 
-    def set_velocity(self, v_x=0, v_y=0, v_z=0, w_x=0, w_y=0, w_y=0):
+    def set_velocity(self, v_x=0, v_y=0, v_z=0, w_x=0, w_y=0, w_z=0):
 
-        goal_pose = Pose()
+	vel_msg = Twist()
 
         vel_msg.linear.x = v_x
         vel_msg.linear.y = v_y
@@ -90,9 +90,9 @@ if __name__ == '__main__':
         rospy.Rate(1).sleep() # Setiing up a subscriber may take a while ...
 
         drone.take_off()
-        rospy.Rate(5).sleep()
-        drone.set_velocity(0.075)
-        rospy.Rate(3).sleep()
+        rospy.sleep(15)
+        drone.set_velocity(0.05)
+        rospy.sleep(4)
         drone.set_velocity()
         drone.land()
 
