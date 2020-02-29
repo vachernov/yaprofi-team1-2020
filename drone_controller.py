@@ -3,6 +3,7 @@ import rospy
 from std_msgs.msg import Empty
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist, Point
+from tello_driver.msg import TelloStatus
 import threading
 import sys
 import tf.transformations as tftr
@@ -26,6 +27,10 @@ class Tello:
 
         self.velocity_publisher = rospy.Publisher('/tello/cmd_vel', Twist, queue_size=5)
 
+        self.status_subscriber = rospy.Subscriber('/tello/status', TelloStatus, self.get_status)
+        
+        self.status = None
+
         self.odom_subscriber = rospy.Subscriber('/tello/odom', Odometry, self.update_odom)
 
         self.x   = None
@@ -34,7 +39,17 @@ class Tello:
         self.q   = None
         self.rpy = None
 
+        self.start = Point(0)
+
         self.rate = rospy.Rate(60)
+
+    def get_status(self, data):
+        # Dron status callback function
+        lock.acquire()
+
+        self.status = data
+
+        lock.release()
 
     def update_odom(self, data):
         # Odometry callback function
@@ -54,6 +69,7 @@ class Tello:
                     pow((goal_pose.y - self.pose.y), 2))
 
     def angular_distance(self, goal_pose):
+        # in oXY
         return sqrt(pow((goal_pose.theta - self.pose.theta), 2))
 
     def steering_angle(self, goal_pose):
@@ -89,12 +105,21 @@ if __name__ == '__main__':
         drone = Tello()
         rospy.Rate(1).sleep() # Setiing up a subscriber may take a while ...
 
+        print 'Taking off ...'
         drone.take_off()
-        print(10)
-        rospy.sleep(5)
-        drone.land()
+        rospy.sleep(15)
+        print 'Start position : [{0}, {1}, {2}]'.format(drone.start.x, drone.start.y, drone.start.z)
 
-        # rospy.spin()
+        print '\n Status : {} \n'.format(drone.status)
+
+        print 'Going forvard ...'
+        drone.set_velocity(v_x = 0.05)
+        rospy.sleep(5)
+        drone.set_velocity()
+
+        print 'Landing ...'
+        drone.land()
+        rospy.sleep(1)
 
         print('killing controller ...') 
     #rospy.spin()
