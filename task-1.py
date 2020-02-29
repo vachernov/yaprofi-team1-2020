@@ -14,9 +14,9 @@ lock = threading.Lock()
 
 #
 
-H       = 1.1  # m
+H       = 1.5  # m
 ANGLE   = pi/3 # rad
-DELTA_H = -0.2 # m
+DELTA_H = -0.8 # m
 
 # DEFINES
 
@@ -96,7 +96,7 @@ class Tello:
         lock.release()
 
         # Log file
-        self.file.write( 'Time from start : {0} X : {1} Y: {2} Z: {3} \n '.format(round((rospy.get_time()-self.time_start), FRAC_PART), self.x - self.start.position.x, self.y - self.start.position.y, self.z - self.start.position.z) )
+        self.file.write( 'Time from start : {0} X : {1} Y: {2} Z: {3} \n '.format(round((rospy.get_time()-self.time_start), FRAC_PART), self.x - self.start.position.x, self.y - self.start.position.y, self.start.position.z) )
 
     def transform_point(self, point_to_transform):
         # x_world -> x_robot
@@ -105,8 +105,8 @@ class Tello:
 
         result_point = Point()
 
-        result_point.x =   point_to_transform.x + self.start.x
-        result_point.y = - point_to_transform.y + self.start.y
+        result_point.x =   point_to_transform.x + self.start.position.x
+        result_point.y = - point_to_transform.y + self.start.position.y
         result_point.z = - point_to_transform.z
 
         return result_point
@@ -235,9 +235,11 @@ if __name__ == '__main__':
 
         print '\n Status : {} \n'.format(drone.status)
 
-        a = Point(0, 0, H)
-        a = drone.transform_point(a)
+        #a = Point(0, 0, H)
+        a = Point(drone.start.position.x, drone.start.position.y, -(H))
+        #a = drone.transform_point(a)
 
+        Point(drone.start.position.x, drone.start.position.y, -(H + DELTA_H))
         print 'Going to point [{0}, {1}, {2}] ...'.format(a.x, a.y, a.z)
         drone.go_to_point(a)
         rospy.sleep(10)
@@ -245,8 +247,9 @@ if __name__ == '__main__':
         drone.rotation(ANGLE)
         rospy.sleep(10)
 
-        b = Point(0, 0, H + DELTA_H)
-        b = drone.transform_point(b)
+        b = Point(drone.start.position.x, drone.start.position.y, -(H + DELTA_H))
+        #b = drone.transform_point(b)
+        print 'Going to point [{0}, {1}, {2}] ...'.format(b.x, b.y, b.z)
 
         drone.go_to_point(b)
         rospy.sleep(10)
