@@ -16,6 +16,7 @@ lock = threading.Lock()
 FRAC_PART = 4
 
 EPSILON = 0.28
+ERROR_ANGLE = 0.5
 V_MAX   = 0.5 # m/s
 W_MAX   = 0.5 # rad/s
 
@@ -43,6 +44,7 @@ class Tello:
         self.z   = None
         self.q   = None
         self.rpy = None
+        self.theta = None
 
         self.start = Point()
 
@@ -71,6 +73,7 @@ class Tello:
 
         self.q = data.pose.pose.orientation
         self.rpy = tftr.euler_from_quaternion((self.q.x, self.q.y, self.q.z, self.q.w))  # roll pitch yaw
+        self.theta = self.rpy[2]
 
         lock.release()
 
@@ -79,9 +82,9 @@ class Tello:
                     (goal_point.y - self.y)**2 +
                     (goal_point.z - self.z)**2 )
 
-    def angular_distance(self, goal_pose):
+    def angular_distance(self, goal_angle):
         # in oXY
-        return sqrt(pow((goal_pose.theta - self.pose.theta), 2))
+        return sqrt( (goal_angle - self.theta) ** 2)
 
     def steering_angle(self, goal_pose):
         return atan2(goal_pose.y - self.pose.y, goal_pose.x - self.pose.x)
@@ -145,6 +148,23 @@ class Tello:
 
         self.velocity_publisher.publish( self.saturation(vel_msg) )
 
+    def rotation(self, angle):
+        k_p = 1.75
+
+        goal_angle = angle + self.theta
+
+        err = self.angular_distance(goal_angle)
+        while abs(err) > ERROR_ANGLE:
+            w_z = k_p * (goal_angle - self.theta)
+
+            self.set_velocity(w_z = w_z)
+
+            err = self.angular_distance(goal_angle)
+            print 'Err: {0}, w_z : {1} x : {2} y : {3}'.format(err, w_z, self.x, self.y)
+
+        self.set_velocity()
+
+
     def go_to_point(self, goal_point):
         k_p = 1.75
 
@@ -160,7 +180,7 @@ class Tello:
             self.rate.sleep()
 
             err = self.linear_distance(goal_point)
-            print 'Err: {0}, vx : {1}, vy : {2}'.format(err, v_x, v_y)
+            print 'Err: {0}, vx : {1}, vy : {2} x : {3} y : {4}'.format(err, v_x, v_y, self.x, self.y)
 
         self.set_velocity()
 
@@ -174,15 +194,26 @@ if __name__ == '__main__':
         rospy.sleep(7)
         drone.set_start()
         print 'Start position : [{0}, {1}, {2}]'.format(drone.start.x, drone.start.y, drone.start.z)
+        rospy.sleep(3)
 
         print '\n Status : {} \n'.format(drone.status)
 
         a = Point(drone.start.x, drone.start.y, drone.start.z)
-        a.x -= 0.6
-        a.y -= 0.4
-        a.z -= 0.5
+        a.x += 1.0
+        a.y += 0.0
+        a.z -= 0.0
 
         print 'Going to point [{0}, {1}, {2}] ...'.format(a.x, a.y, a.z)
+        drone.go_to_point(a)
+        rospy.sleep(5)
+
+        drone.rotation(pi/3)
+        rospy.sleep(5)
+
+        a.x += -1.0
+        a.y += -0.0
+        a.z -= -0.0
+
         drone.go_to_point(a)
         rospy.sleep(5)
 
