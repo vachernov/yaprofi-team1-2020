@@ -14,7 +14,7 @@ lock = threading.Lock()
 
 # DEFINES
 
-FILE_NAME = 'TEST_LOGS.TXT'
+FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/test_log.txt'
 
 FRAC_PART = 4
 
@@ -105,7 +105,7 @@ class Tello:
 
         # Log file
 
-        self.file.write( 'Time from start : {0:3} X : {1} Y: {2} Z: {3} \n '.format(rospy.get_time()-self.time_start, self.x, self.y, self.z) )
+        self.file.write( 'Time from start : {0} X : {1} Y: {2} Z: {3} \n '.format(round((rospy.get_time()-self.time_start)/1e9, FRAC_PART), self.x, self.y, self.z) )
 
     def linear_distance(self, goal_point):
         return sqrt((goal_point.x - self.x)**2 +
@@ -163,6 +163,7 @@ class Tello:
     def land(self):
         msg = Empty()
         self.land_publisher.publish(msg)
+        self.file.close()
 
     def set_velocity(self, v_x=0, v_y=0, v_z=0, w_x=0, w_y=0, w_z=0):
 
@@ -181,7 +182,7 @@ class Tello:
         self.velocity_publisher.publish( self.saturation(vel_msg) )
 
     def rotation(self, angle):
-        k_p = 1.75
+        k_p = 2.45
 
         goal_angle = angle + self.theta
 
@@ -219,6 +220,10 @@ class Tello:
 if __name__ == '__main__':
     try:
         drone = Tello()
+        # f = open('/home/root/catkin_ws/src/tello_driver/src/test.txt', 'w')
+        # f.write('1 \n')
+        # f.write('2\n')
+        # f.close()
         rospy.Rate(1).sleep() # Setiing up a subscriber may take a while ...
 
         print 'Taking off ...'
