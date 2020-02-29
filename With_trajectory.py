@@ -7,20 +7,16 @@ from tello_driver.msg import TelloStatus
 import threading
 import sys
 import tf.transformations as tftr
-#from bac_task.msg import CartesianTrajectory
+from tello_driver.msg import CartesianTrajectory
 from numpy import *
 
 lock = threading.Lock()
 
-#
-
-H       = 1.5  # m
-ANGLE   = pi/3 # rad
-DELTA_H = -0.4 # m
-
 # DEFINES
 
-FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/task_1_log.txt'
+FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/test_log.txt'
+
+Alpha = 0
 
 FRAC_PART = 4
 
@@ -42,6 +38,8 @@ class Tello:
         self.velocity_publisher = rospy.Publisher('/tello/cmd_vel', Twist, queue_size=5)
 
         self.status_subscriber = rospy.Subscriber('/tello/status', TelloStatus, self.get_status)
+
+        self.trajectory_sub = rospy.Subscriber("/tello/trajectory", CartesianTrajectory, self.trajectory_callback)
         
         self.status = None
 
@@ -59,7 +57,6 @@ class Tello:
         self.start = Pose()
 
         self.file = open(FILE_NAME, 'w')
-        self.file.write('Input : h = {0}, theta = {1}, delta_h = {2}'.format(H, ANGLE, DELTA_H))
 
         self.rate = rospy.Rate(60)
 
@@ -71,6 +68,23 @@ class Tello:
 
         lock.release()
 
+    def trajectory_callback(self, msg): ##
+        """
+        Trajectory for Robotino.
+        Gets trajectory from robotino_trajectory_generator_node and saves to self variable.
+        """
+        lock.acquire()
+
+        for pose in msg.poses:
+            self.trajectory.append(pose)
+        lock.release()
+
+    def exists_trajectory(self): ##
+        if self.trajectory is not None:
+            return True
+        else:
+            return False
+
     def set_start(self):
         self.time_start = rospy.get_time()
 
@@ -79,7 +93,7 @@ class Tello:
         self.start.position.z = self.z
 
         self.start.orientation = self.q
-        self.theta_start       = tftr.euler_from_quaternion((self.q.x, self.q.y, self.q.z, self.q.w))[2]
+        self.theta_start = tftr.euler_from_quaternion((self.q.x, self.q.y, self.q.z, self.q.w))[2]
 
     def update_odom(self, data):
         # Odometry callback function
@@ -96,21 +110,8 @@ class Tello:
         lock.release()
 
         # Log file
-        self.file.write( 'Time from start : {0} X : {1} Y: {2} Z: {3} \n '.format(round((rospy.get_time()-self.time_start), FRAC_PART), self.x - self.start.position.x, self.y - self.start.position.y, self.start.position.z) )
 
-    def transform_point(self, point_to_transform):
-        # x_world -> x_robot
-        # y_world -> -y_robot
-        # z_world -> -z_robot
-
-        result_point = Point()
-
-        result_point.x =   point_to_transform.x + self.start.position.x
-        result_point.y = - point_to_transform.y + self.start.position.y
-        result_point.z = - point_to_transform.z
-
-        return result_point
-
+        self.file.write( 'Time from start : {0} X : {1} Y: {2} Z: {3} \n '.format(round((rospy.get_time()-self.time_start), FRAC_PART), self.x - self.start.position.x, self.y - self.start.position.y, self.z - self.start.position.z) )
 
     def linear_distance(self, goal_point):
         return sqrt((goal_point.x - self.x)**2 +
@@ -125,7 +126,12 @@ class Tello:
         return atan2(goal_pose.y - self.pose.y, goal_pose.x - self.pose.x)
 
     def angular_vel(self, goal_pose, constant=30):
-        return constant * (self.steering_angle(goal_pose) - self.pose.theta) 
+        return constant * (self.steering_angle(goal_pose) - self.pose.theta)
+
+    def gp(self, msg):
+        for i in range(len(self.trajectory.poses)):
+            goal_pose = self.trajectory.poses[i]
+        return goal_pose
 
     def saturation(self, vel_raw):
         # v_x
@@ -187,7 +193,7 @@ class Tello:
         self.velocity_publisher.publish( self.saturation(vel_msg) )
 
     def rotation(self, angle):
-        k_p = 2.45
+        k_p = 2.15
 
         goal_angle = angle + self.theta
 
@@ -202,8 +208,9 @@ class Tello:
 
         self.set_velocity()
 
+
     def go_to_point(self, goal_point):
-        k_p = 1.75
+        k_p = 1.25
 
         err = self.linear_distance(goal_point)
         while abs(err) > EPSILON:
@@ -224,6 +231,10 @@ class Tello:
 if __name__ == '__main__':
     try:
         drone = Tello()
+        # f = open('/home/root/catkin_ws/src/tello_driver/src/test.txt', 'w')
+        # f.write('1 \n')
+        # f.write('2\n')
+        # f.close()
         rospy.Rate(1).sleep() # Setiing up a subscriber may take a while ...
 
         print 'Taking off ...'
@@ -231,28 +242,23 @@ if __name__ == '__main__':
         rospy.sleep(7)
         drone.set_start()
         print 'Start position : [{0}, {1}, {2}]'.format(drone.start.position.x, drone.start.position.y, drone.start.position.z)
-        rospy.sleep(0.5)
+        rospy.sleep(3)
 
         print '\n Status : {} \n'.format(drone.status)
 
-        a = Point(0, 0, H)
-        a = drone.transform_point(a)
-        # a = Point(drone.start.position.x, drone.start.position.y, -(H))
-
-        Point(drone.start.position.x, drone.start.position.y, -(H + DELTA_H))
+        a = Point(drone.start.position.x, drone.start.position.y, drone.start.position.z)
+        a.x += 0.8
+        a.y -= 0.9
+        a.z -= 0.0
         print 'Going to point [{0}, {1}, {2}] ...'.format(a.x, a.y, a.z)
-        drone.go_to_point(a)
+        drone.go_to_point(H_ST)
         rospy.sleep(10)
 
-        drone.rotation(ANGLE)
+        drone.rotation(Alpha)
         rospy.sleep(10)
 
-        # b = Point(drone.start.position.x, drone.start.position.y, -(H + DELTA_H))
-        b = Point(0, 0, (H + DELTA_H))
-        b = drone.transform_point(b)
-        print 'Going to point [{0}, {1}, {2}] ...'.format(b.x, b.y, b.z)
 
-        drone.go_to_point(b)
+        drone.go_to_point(H_F)
         rospy.sleep(10)
 
         print 'Landing ...'
