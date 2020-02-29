@@ -105,7 +105,7 @@ class Tello:
 
         # Log file
 
-        self.file.write( 'Time from start : {0} X : {1} Y: {2} Z: {3} \n '.format(round((rospy.get_time()-self.time_start)/1e9, FRAC_PART), self.x, self.y, self.z) )
+        self.file.write( 'Time from start : {0} X : {1} Y: {2} Z: {3} \n '.format(round((rospy.get_time()-self.time_start), FRAC_PART), self.x - self.start.position.x, self.y - self.start.position.y, self.z - self.start.position.z) )
 
     def linear_distance(self, goal_point):
         return sqrt((goal_point.x - self.x)**2 +
@@ -169,7 +169,7 @@ class Tello:
 
         vel_msg = Twist()
 
-        psi = self.theta - self.theta_start
+        psi = - (self.theta - self.theta_start)
 
         vel_msg.linear.x = v_x * cos(psi) - v_y * sin(psi)
         vel_msg.linear.y = v_x * sin(psi) + v_y * cos(psi)
