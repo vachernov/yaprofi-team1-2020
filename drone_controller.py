@@ -63,16 +63,15 @@ class Tello:
         return constant * (self.steering_angle(goal_pose) - self.pose.theta) 
 
     def take_off(self):
-	msg = Empty()
-    	self.takeoff_publisher.publish(msg)
+        msg = Empty()
+        self.takeoff_publisher.publish(msg)
 
     def land(self):
-	msg = Empty()
-    	self.land_publisher.publish(msg)
+        msg = Empty()
+        self.land_publisher.publish(msg)
 
     def set_velocity(self, v_x=0, v_y=0, v_z=0, w_x=0, w_y=0, w_z=0):
-
-	vel_msg = Twist()
+        vel_msg = Twist()
 
         vel_msg.linear.x = v_x
         vel_msg.linear.y = v_y
@@ -90,13 +89,10 @@ if __name__ == '__main__':
         rospy.Rate(1).sleep() # Setiing up a subscriber may take a while ...
 
         drone.take_off()
-        rospy.sleep(15)
-        drone.set_velocity(0.05)
-        rospy.sleep(4)
-        drone.set_velocity()
-        drone.land()
+
+        rospy.spin()
 
         print('killing controller ...') 
-    #rospy.spin()
+        #rospy.spin()
     except rospy.ROSInterruptException:
         pass
