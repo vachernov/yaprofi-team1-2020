@@ -18,7 +18,7 @@ FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/test_log.txt'
 
 FRAC_PART = 4
 
-EPSILON = 0.28
+EPSILON = 0.075
 ERROR_ANGLE = 0.5
 V_MAX   = 0.5 # m/s
 W_MAX   = 0.5 # rad/s
@@ -72,7 +72,7 @@ class Tello:
         self.start.position.z = self.z
 
         self.start.orientation = self.q
-        self.theta_start       = tftr.euler_from_quaternion((self.q.x, self.q.y, self.q.z, self.q.w))[2]
+        self.theta_start = tftr.euler_from_quaternion((self.q.x, self.q.y, self.q.z, self.q.w))[2]
 
     def update_odom(self, data):
         # Odometry callback function
@@ -180,7 +180,7 @@ class Tello:
         self.velocity_publisher.publish( self.saturation(vel_msg) )
 
     def rotation(self, angle):
-        k_p = 2.45
+        k_p = 2.15
 
         goal_angle = angle + self.theta
 
@@ -196,7 +196,7 @@ class Tello:
         self.set_velocity()
 
     def go_to_point(self, goal_point):
-        k_p = 1.75
+        k_p = 1.25
 
         err = self.linear_distance(goal_point)
         while abs(err) > EPSILON:
@@ -229,8 +229,8 @@ if __name__ == '__main__':
         print '\n Status : {} \n'.format(drone.status)
 
         a = Point(drone.start.position.x, drone.start.position.y, drone.start.position.z)
-        a.x += 0.4
-        a.y += 0.2
+        a.x += 0.8
+        a.y -= 0.9
         a.z -= 0.0
 
         print 'Going to point [{0}, {1}, {2}] ...'.format(a.x, a.y, a.z)
@@ -240,8 +240,8 @@ if __name__ == '__main__':
         drone.rotation(pi/3)
         rospy.sleep(5)
 
-        a.x += -0.4
-        a.y += -0.2
+        a.x += -0.8
+        a.y -= -0.9
         a.z -= -0.0
 
         drone.go_to_point(a)
