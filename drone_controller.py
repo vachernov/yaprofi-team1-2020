@@ -15,8 +15,8 @@ lock = threading.Lock()
 
 FRAC_PART = 4
 
-EPSILON = 0.1
-V_MAX   = 0.4 # m/s
+EPSILON = 0.28
+V_MAX   = 0.5 # m/s
 W_MAX   = 0.5 # rad/s
 
 
@@ -146,7 +146,7 @@ class Tello:
         self.velocity_publisher.publish( self.saturation(vel_msg) )
 
     def go_to_point(self, goal_point):
-        k_p = 3
+        k_p = 1.75
 
         err = self.linear_distance(goal_point)
         while abs(err) > EPSILON:
@@ -172,14 +172,15 @@ if __name__ == '__main__':
         print 'Taking off ...'
         drone.take_off()
         rospy.sleep(7)
+        drone.set_start()
         print 'Start position : [{0}, {1}, {2}]'.format(drone.start.x, drone.start.y, drone.start.z)
 
         print '\n Status : {} \n'.format(drone.status)
 
         a = Point(drone.start.x, drone.start.y, drone.start.z)
-        a.x += 0.3
-        a.y += 0.3
-        a.z -= 0.2
+        a.x -= 0.6
+        a.y -= 0.4
+        a.z -= 0.5
 
         print 'Going to point [{0}, {1}, {2}] ...'.format(a.x, a.y, a.z)
         drone.go_to_point(a)
