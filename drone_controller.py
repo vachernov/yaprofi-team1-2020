@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 import rospy
-from geometry_msgs.msg import Twist
+from std_msgs.msg import Empty
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Twist, Point
 import threading
 import sys
 import tf.transformations as tftr
@@ -21,7 +21,9 @@ class Tello:
         # unique node
         rospy.init_node('tello_controller', anonymous=True)
 
-        # Publisher which will publish to the topic '/tello/cmd_vel'.
+        self.takeoff_publisher = rospy.Publisher('/tello/take_off', Empty, queue_size=1)
+        self.land_publisher = rospy.Publisher('/tello/land', Empty, queue_size=1)
+
         self.velocity_publisher = rospy.Publisher('/tello/cmd_vel', Twist, queue_size=5)
 
         self.odom_subscriber = rospy.Subscriber('/tello/odom', Odometry, self.update_odom)
@@ -60,9 +62,15 @@ class Tello:
         return atan2(goal_pose.y - self.pose.y, goal_pose.x - self.pose.x)
 
     def angular_vel(self, goal_pose, constant=30):
-        return constant * (self.steering_angle(goal_pose) - self.pose.theta)    
+        return constant * (self.steering_angle(goal_pose) - self.pose.theta) 
 
-    def set_velocity(self, v_x, v_y, v_z, w_x, w_y, w_y):
+    def take_off(self):
+    	self.takeoff_publisher.publish('')
+
+    def land(self):
+    	self.land_publisher.publish('')
+
+    def set_velocity(self, v_x=0, v_y=0, v_z=0, w_x=0, w_y=0, w_y=0):
 
         goal_pose = Pose()
 
@@ -80,6 +88,14 @@ if __name__ == '__main__':
     try:
         drone = Tello()
         rospy.Rate(1).sleep() # Setiing up a subscriber may take a while ...
+
+        drone.take_off()
+        rospy.Rate(5).sleep()
+        drone.set_velocity(0.075)
+        rospy.Rate(3).sleep()
+        drone.set_velocity()
+        drone.land()
+
         print('killing controller ...') 
     #rospy.spin()
     except rospy.ROSInterruptException:
