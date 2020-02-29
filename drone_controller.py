@@ -13,13 +13,14 @@ lock = threading.Lock()
 
 # DEFINES
 
+FILE_NAME = 'TEST_LOGS.TXT'
+
 FRAC_PART = 4
 
 EPSILON = 0.28
 ERROR_ANGLE = 0.5
 V_MAX   = 0.5 # m/s
 W_MAX   = 0.5 # rad/s
-
 
 class Tello:
 
@@ -47,7 +48,10 @@ class Tello:
         self.theta = None
         self.theta_start = None
 
+        self.time_start = None
         self.start = Pose()
+
+        self.file = open(FILE_NAME, 'w')
 
         self.rate = rospy.Rate(60)
 
@@ -60,6 +64,8 @@ class Tello:
         lock.release()
 
     def set_start(self):
+        self.time_start = rospy.get_time()
+
         self.start.position.x = self.x
         self.start.position.y = self.y
         self.start.position.z = self.z
@@ -80,6 +86,10 @@ class Tello:
         self.theta = self.rpy[2]
 
         lock.release()
+
+        # Log file
+
+        self.file.write('Time from start : {0:3} X : {1} Y: {2} Z: {3} \n ', rospy.get_time()-time_start, self.x, self.y, self.z)
 
     def linear_distance(self, goal_point):
         return sqrt((goal_point.x - self.x)**2 +
@@ -142,8 +152,10 @@ class Tello:
 
         vel_msg = Twist()
 
-        vel_msg.linear.x = v_x * cos(self.theta - self.theta_start) - v_y * sin(self.theta - self.theta_start)
-        vel_msg.linear.y = v_x * sin(self.theta - self.theta_start) + v_y * cos(self.theta - self.theta_start)
+        psi = self.theta - self.theta_start
+
+        vel_msg.linear.x = v_x * cos(psi) - v_y * sin(psi)
+        vel_msg.linear.y = v_x * sin(psi) + v_y * cos(psi)
         vel_msg.linear.z = v_z
 
         vel_msg.angular.x = w_x
