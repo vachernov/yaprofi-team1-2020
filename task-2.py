@@ -25,8 +25,8 @@ FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/task_2_log.txt'
 
 FRAC_PART = 4
 
-EPSILON = 0.105
-ERROR_ANGLE = 0.5
+EPSILON = 0.085
+ERROR_ANGLE = pi/15
 V_MAX   = 0.5 # m/s
 W_MAX   = 0.5 # rad/s
 
@@ -221,7 +221,13 @@ class Tello:
 
         self.set_velocity()
 
+def deg_to_rad(self, val):
+        return val/180*pi
+
 if __name__ == '__main__':
+
+    ANGLE = -deg_to_rad(ANGLE)
+
     try:
         drone = Tello()
         rospy.Rate(1).sleep() # Setiing up a subscriber may take a while ...
@@ -241,9 +247,6 @@ if __name__ == '__main__':
 
         print 'Going to point [{0}, {1}, {2}] ...'.format(a.x, a.y, a.z)
         drone.go_to_point(a)
-        rospy.sleep(10)
-
-        drone.rotation(ANGLE)
         rospy.sleep(10)
 
         # b = Point(drone.start.position.x, drone.start.position.y, -(H + DELTA_H))
