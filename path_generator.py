@@ -19,19 +19,19 @@ class RobotinoTrajectoryGenerator:
         self.dt = 1. / self.RATE
 
         # trajectory parameters (initial)
-        self.laps = 1   # quantity laps
-        self.velocity = 0.1
-        self.A_x, self.A_y = 1., 1.
+        self.laps = 4   # quantity laps
+        self.velocity = 0.15
+        self.A_x, self.A_y = 1., 0.5
         self.phi = -pi / 2.
 
-        self.tf = 10  # time for lap. Just for c
+        self.tf = 1  # time for lap. Just for c
         self.omega_x = 2 * pi / self.tf
         self.omega_y = 2 * self.omega_x     # frequencies for 8-like-trajectory
         self.N = self.tf / self.dt  # quantity of a trajectory points
 
         self.is_update = True   # update trajectory parameters
 
-        self.trajectory_pub = rospy.Publisher('/robotino/trajectory', CartesianTrajectory, queue_size=-1)
+        self.trajectory_pub = rospy.Publisher('/tello/trajectory', CartesianTrajectory, queue_size=-1)
         self.trajectrory_parameters_srv = None
         try:
             self.trajectrory_parameters_srv = rospy.Service('/set_trajectory_parameters', SetTrajectoryParameters, self.trajectrory_parameters_handler)

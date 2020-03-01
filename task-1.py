@@ -14,9 +14,9 @@ lock = threading.Lock()
 
 #
 
-H       =  1.5 # m
-ANGLE   = 135.0 # rad
-DELTA_H = -0.5 # m
+H       =  1.0# m
+ANGLE   = 90.0 # rad
+DELTA_H = +1.0 # m
 
 # DEFINES
 

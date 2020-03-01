@@ -14,10 +14,10 @@ lock = threading.Lock()
 
 #
 
-H       = 1.0  # m
-X       = -1.25    # m
+H       = 2.0  # m
+X       = 1.25    # m
 Y       = -1.25    # m
-ANGLE   = 175 # rad
+ANGLE   = 90 # rad
 
 # DEFINES
 
