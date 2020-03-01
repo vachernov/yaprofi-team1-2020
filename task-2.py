@@ -15,16 +15,17 @@ lock = threading.Lock()
 #
 
 H       = 2.0  # m
-ANGLE   = -pi/2 # rad
-DELTA_H = -1.0 # m
+X       = -1.25    # m
+Y       = -1.25    # m
+ANGLE   = -pi # rad
 
 # DEFINES
 
-FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/task_1_log.txt'
+FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/task_2_log.txt'
 
 FRAC_PART = 4
 
-EPSILON = 0.075
+EPSILON = 0.105
 ERROR_ANGLE = 0.5
 V_MAX   = 0.5 # m/s
 W_MAX   = 0.5 # rad/s
@@ -59,7 +60,6 @@ class Tello:
         self.start = Pose()
 
         self.file = open(FILE_NAME, 'w')
-        self.file.write('Input : h = {0}, theta = {1}, delta_h = {2}'.format(H, ANGLE, DELTA_H))
 
         self.rate = rospy.Rate(60)
 
@@ -96,7 +96,7 @@ class Tello:
         lock.release()
 
         # Log file
-        self.file.write( 'Time from start : {0} e_h : {1} e_a: {2}'.format(round((rospy.get_time()-self.time_start), FRAC_PART), H - (-self.z), ANGLE - (self.theta_start - self.theta)  ))
+        self.file.write( 'Time from start : {0} e_x : {1} e_y : {2} e_z : {3} e_a : {4} \n '.format(round((rospy.get_time()-self.time_start), FRAC_PART), X - self.x, Y - (-self.y), Z - (-self.z), ANGLE - (self.theta_start - self.theta) ) )
 
     def transform_point(self, point_to_transform):
         # x_world -> x_robot
@@ -110,9 +110,6 @@ class Tello:
         result_point.z = - point_to_transform.z
 
         return result_point
-
-    def deg_to_rad(self, val):
-        return val/180*pi
 
 
     def linear_distance(self, goal_point):
@@ -242,7 +239,6 @@ if __name__ == '__main__':
         a = drone.transform_point(a)
         # a = Point(drone.start.position.x, drone.start.position.y, -(H))
 
-        Point(drone.start.position.x, drone.start.position.y, -(H + DELTA_H))
         print 'Going to point [{0}, {1}, {2}] ...'.format(a.x, a.y, a.z)
         drone.go_to_point(a)
         rospy.sleep(10)
@@ -251,11 +247,12 @@ if __name__ == '__main__':
         rospy.sleep(10)
 
         # b = Point(drone.start.position.x, drone.start.position.y, -(H + DELTA_H))
-        b = Point(0, 0, (H + DELTA_H))
+        b = Point(X, Y, H)
         b = drone.transform_point(b)
         print 'Going to point [{0}, {1}, {2}] ...'.format(b.x, b.y, b.z)
 
         drone.go_to_point(b)
+        drone.rotation(ANGLE)
         rospy.sleep(10)
 
         print 'Landing ...'

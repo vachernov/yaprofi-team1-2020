@@ -20,10 +20,12 @@ Alpha = 0
 
 FRAC_PART = 4
 
-EPSILON = 0.075
+EPSILON = 0.089
 ERROR_ANGLE = 0.5
 V_MAX   = 0.5 # m/s
 W_MAX   = 0.5 # rad/s
+
+H = 2.0 # m
 
 class Tello:
 
@@ -40,7 +42,8 @@ class Tello:
         self.status_subscriber = rospy.Subscriber('/tello/status', TelloStatus, self.get_status)
 
         self.trajectory_sub = rospy.Subscriber("/tello/trajectory", CartesianTrajectory, self.trajectory_callback)
-        
+        self.trajectory = []
+
         self.status = None
 
         self.odom_subscriber = rospy.Subscriber('/tello/odom', Odometry, self.update_odom)
@@ -60,6 +63,8 @@ class Tello:
 
         self.rate = rospy.Rate(60)
 
+        self.state = 0
+
     def get_status(self, data):
         # Dron status callback function
         lock.acquire()
@@ -74,9 +79,10 @@ class Tello:
         Gets trajectory from robotino_trajectory_generator_node and saves to self variable.
         """
         lock.acquire()
-
-        for pose in msg.poses:
-            self.trajectory.append(pose)
+        if self.trajectory == []:
+            for pose in msg.poses:
+                self.trajectory.append(pose)
+            print( len(self.trajectory) )
         lock.release()
 
     def exists_trajectory(self): ##
@@ -213,20 +219,51 @@ class Tello:
         k_p = 1.25
 
         err = self.linear_distance(goal_point)
+
+        try:
+            yaw = self.trajectory[self.state].theta # atan2(self.trajectory[self.state+1].y - self.trajectory[self.state].y, self.trajectory[self.state+1].x - self.trajectory[self.state].x)
+        except:
+            pass
         while abs(err) > EPSILON:
             v_x = k_p * (goal_point.x - self.x)
             v_y = k_p * (goal_point.y - self.y)
             v_z = k_p * (goal_point.z - self.z)
 
-            self.set_velocity(v_x, v_y, v_z)
+            e_theta = yaw - (self.theta - self.theta_start) 
+
+            w_z = k_p * e_theta
+
+            self.set_velocity(v_x, v_y, v_z, 0, 0, w_z)
 
 
             self.rate.sleep()
 
             err = self.linear_distance(goal_point)
-            print 'Err: {0}, vx : {1}, vy : {2} x : {3} y : {4}'.format(err, v_x, v_y, self.x, self.y)
+            # print 'Err: {0}, vx : {1}, vy : {2} x : {3} y : {4}'.format(err, v_x, v_y, self.x, self.y)
 
-        self.set_velocity()
+        # self.set_velocity()
+
+    def transform_point(self, point_to_transform):
+        # x_world -> x_robot
+        # y_world -> -y_robot
+        # z_world -> -z_robot
+
+        result_point = Point()
+
+        result_point.x =   point_to_transform.x + self.start.position.x
+        result_point.y = - point_to_transform.y + self.start.position.y
+        result_point.z = - point_to_transform.z
+
+        return result_point
+
+    def do_eight(self):
+        while(self.state < len(self.trajectory)):
+            a = Point(self.trajectory[self.state].x, self.trajectory[self.state].y, H)
+            a = self.transform_point(a)
+            self.go_to_point(a)
+
+            print(self.state)
+            self.state += 1
 
 if __name__ == '__main__':
     try:
@@ -238,28 +275,14 @@ if __name__ == '__main__':
         rospy.Rate(1).sleep() # Setiing up a subscriber may take a while ...
 
         print 'Taking off ...'
+
         drone.take_off()
         rospy.sleep(7)
         drone.set_start()
         print 'Start position : [{0}, {1}, {2}]'.format(drone.start.position.x, drone.start.position.y, drone.start.position.z)
         rospy.sleep(3)
 
-        print '\n Status : {} \n'.format(drone.status)
-
-        a = Point(drone.start.position.x, drone.start.position.y, drone.start.position.z)
-        a.x += 0.8
-        a.y -= 0.9
-        a.z -= 0.0
-        print 'Going to point [{0}, {1}, {2}] ...'.format(a.x, a.y, a.z)
-        drone.go_to_point(H_ST)
-        rospy.sleep(10)
-
-        drone.rotation(Alpha)
-        rospy.sleep(10)
-
-
-        drone.go_to_point(H_F)
-        rospy.sleep(10)
+        drone.do_eight()
 
         print 'Landing ...'
         drone.land()
