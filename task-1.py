@@ -14,9 +14,9 @@ lock = threading.Lock()
 
 #
 
-H       = 2.0  # m
-ANGLE   = -pi/2 # rad
-DELTA_H = -1.0 # m
+H       =  1.5 # m
+ANGLE   = 135.0 # rad
+DELTA_H = -0.5 # m
 
 # DEFINES
 
@@ -24,10 +24,10 @@ FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/task_1_log.txt'
 
 FRAC_PART = 4
 
-EPSILON = 0.075
-ERROR_ANGLE = pi/15
+EPSILON = 0.1195
+ERROR_ANGLE = pi/12
 V_MAX   = 0.5 # m/s
-W_MAX   = 0.5 # rad/s
+W_MAX   = 0.85 # rad/s
 
 class Tello:
 
@@ -54,6 +54,8 @@ class Tello:
         self.rpy = None
         self.theta = None
         self.theta_start = None
+
+        self.h = -1.5
 
         self.time_start = -1.0
         self.start = Pose()
@@ -96,7 +98,7 @@ class Tello:
         lock.release()
 
         # Log file
-        self.file.write( 'Time from start : {0} e_h : {1} e_a: {2}'.format(round((rospy.get_time()-self.time_start), FRAC_PART), H - (-self.z), ANGLE - (self.theta_start - self.theta)  ))
+        self.file.write( 'Time from start : {0} e_h : {1} e_a: {2} \n'.format(round((rospy.get_time()-self.time_start), FRAC_PART), H - (-self.z), ANGLE - (self.theta_start - self.theta)  ))
 
     def transform_point(self, point_to_transform):
         # x_world -> x_robot
@@ -186,18 +188,23 @@ class Tello:
         self.velocity_publisher.publish( self.saturation(vel_msg) )
 
     def rotation(self, angle):
-        k_p = 2.45
+        k_p = 2.75
 
-        goal_angle = angle + self.theta
+        goal_angle = ((-angle/180.0)*pi) + (self.theta - self.theta_start)
 
         err = self.angular_distance(goal_angle)
+        print 'angle: {0}, theta : {1} theta_start : {2}'.format( ((-angle/180.0)*pi), self.theta, self.theta_start)
         while abs(err) > ERROR_ANGLE:
-            w_z = k_p * (goal_angle - self.theta)
+            err = goal_angle - (self.theta - self.theta_start)
+            if err > pi:
+                err -= 2*pi
+            elif err < -pi:
+                err += 2*pi
+
+            w_z = k_p * err
 
             self.set_velocity(w_z = w_z)
-
-            err = self.angular_distance(goal_angle)
-            print 'Err: {0}, w_z : {1} x : {2} y : {3}'.format(err, w_z, self.x, self.y)
+            #print 'Err: {0}, w_z : {1} x : {2} y : {3}'.format(err, w_z, self.x, self.y)
 
         self.set_velocity()
 
@@ -215,16 +222,16 @@ class Tello:
             self.rate.sleep()
 
             err = self.linear_distance(goal_point)
-            print 'Err: {0}, vx : {1}, vy : {2} x : {3} y : {4}'.format(err, v_x, v_y, self.x, self.y)
+            print 'Err: {0}, vz : {1} z : {2}'.format(err, v_z, -self.z)
 
         self.set_velocity()
 
-def deg_to_rad(self, val):
-        return val/180*pi
+def deg_to_rad(val):
+    return (val/180)*pi
 
 if __name__ == '__main__':
 
-    ANGLE = -deg_to_rad(ANGLE)
+    #ANGLE = -deg_to_rad(ANGLE)
 
     try:
         drone = Tello()
@@ -232,10 +239,10 @@ if __name__ == '__main__':
 
         print 'Taking off ...'
         drone.take_off()
-        rospy.sleep(5)
+        rospy.sleep(3)
         drone.set_start()
         print 'Start position : [{0}, {1}, {2}]'.format(drone.start.position.x, drone.start.position.y, drone.start.position.z)
-        rospy.sleep(0.5)
+        rospy.sleep(0.05)
 
         print '\n Status : {} \n'.format(drone.status)
 
@@ -248,7 +255,7 @@ if __name__ == '__main__':
         drone.go_to_point(a)
         rospy.sleep(10)
 
-        drone.rotation(ANGLE)
+        drone.rotation( ANGLE )
         rospy.sleep(10)
 
         # b = Point(drone.start.position.x, drone.start.position.y, -(H + DELTA_H))
