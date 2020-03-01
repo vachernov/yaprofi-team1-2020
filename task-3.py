@@ -2,7 +2,7 @@
 import rospy
 from std_msgs.msg import Empty
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Twist, Point, Pose
+from geometry_msgs.msg import Twist, Point, Pose, Pose2D
 from tello_driver.msg import TelloStatus
 import threading
 import sys
@@ -14,16 +14,16 @@ lock = threading.Lock()
 
 # DEFINES
 
-FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/test_log.txt'
+FILE_NAME = '/home/root/catkin_ws/src/tello_driver/src/tast_3_log.txt'
 
 Alpha = 0
 
 FRAC_PART = 4
 
-EPSILON = 0.089
-ERROR_ANGLE = 0.5
-V_MAX   = 0.5 # m/s
-W_MAX   = 0.5 # rad/s
+EPSILON = 0.25
+ERROR_ANGLE = 0.025
+V_MAX   = 0.275 # m/s
+W_MAX   = 0.715 # rad/s
 
 H = 2.0 # m
 
@@ -117,7 +117,7 @@ class Tello:
 
         # Log file
 
-        self.file.write( 'Time from start : {0} X : {1} Y: {2} Z: {3} \n '.format(round((rospy.get_time()-self.time_start), FRAC_PART), self.x - self.start.position.x, self.y - self.start.position.y, self.z - self.start.position.z) )
+        self.file.write( 'Time from start : {0} X : {1} Y: {2} Z: {3} Theta: {4} \n '.format(round((rospy.get_time()-self.time_start), FRAC_PART), self.x - self.start.position.x, self.y - self.start.position.y, self.z - self.start.position.z,  self.theta - self.theta_start) )
 
     def linear_distance(self, goal_point):
         return sqrt((goal_point.x - self.x)**2 +
@@ -199,47 +199,58 @@ class Tello:
         self.velocity_publisher.publish( self.saturation(vel_msg) )
 
     def rotation(self, angle):
-        k_p = 2.15
+        k_p = 3.25
 
-        goal_angle = angle + self.theta
+        goal_angle = ((-angle/180.0)*pi) + (self.theta - self.theta_start)
 
         err = self.angular_distance(goal_angle)
+        print 'angle: {0}, theta : {1} theta_start : {2}'.format( ((-angle/180.0)*pi), self.theta, self.theta_start)
         while abs(err) > ERROR_ANGLE:
-            w_z = k_p * (goal_angle - self.theta)
+            err = goal_angle - (self.theta - self.theta_start)
+            if err > pi:
+                err -= 2*pi
+            elif err < -pi:
+                err += 2*pi
+
+            w_z = k_p * err
 
             self.set_velocity(w_z = w_z)
-
-            err = self.angular_distance(goal_angle)
-            print 'Err: {0}, w_z : {1} x : {2} y : {3}'.format(err, w_z, self.x, self.y)
+            #print 'Err: {0}, w_z : {1} x : {2} y : {3}'.format(err, w_z, self.x, self.y)
 
         self.set_velocity()
 
 
     def go_to_point(self, goal_point):
-        k_p = 1.25
+        k_p = 2.15
 
         err = self.linear_distance(goal_point)
 
-        try:
-            yaw = self.trajectory[self.state].theta # atan2(self.trajectory[self.state+1].y - self.trajectory[self.state].y, self.trajectory[self.state+1].x - self.trajectory[self.state].x)
-        except:
-            pass
         while abs(err) > EPSILON:
             v_x = k_p * (goal_point.x - self.x)
             v_y = k_p * (goal_point.y - self.y)
             v_z = k_p * (goal_point.z - self.z)
 
-            e_theta = yaw - (self.theta - self.theta_start) 
+            angle_t = arctan2(goal_point.y - self.y, goal_point.x - self.x)
+            if self.theta > pi:
+                err =  ( angle_t - (self.theta - self.theta_start) ) + 2*pi
+            else:
+                err =  ( angle_t - (self.theta - self.theta_start) )
 
-            w_z = k_p * e_theta
+           # err =  arctan2(goal_point.y - self.y, goal_point.x - self.x) - (self.theta - self.theta_start)
+            if err > pi:
+                err -= 2*pi
+            elif err < -pi:
+                err += 2*pi
+
+            w_z = 3.05 * err
 
             self.set_velocity(v_x, v_y, v_z, 0, 0, w_z)
-
 
             self.rate.sleep()
 
             err = self.linear_distance(goal_point)
-            # print 'Err: {0}, vx : {1}, vy : {2} x : {3} y : {4}'.format(err, v_x, v_y, self.x, self.y)
+            # print 'Err: {0}, vx : {1}, vy : {2} x : {3} y : {4} state: {5}'.format(err, v_x, v_y, self.x, self.y, self.state)
+            print 'angle: {} state : {}'.format(self.trajectory[self.state].theta, self.state)
 
         # self.set_velocity()
 
@@ -262,26 +273,22 @@ class Tello:
             a = self.transform_point(a)
             self.go_to_point(a)
 
-            print(self.state)
             self.state += 1
 
 if __name__ == '__main__':
     try:
         drone = Tello()
-        # f = open('/home/root/catkin_ws/src/tello_driver/src/test.txt', 'w')
-        # f.write('1 \n')
-        # f.write('2\n')
-        # f.close()
         rospy.Rate(1).sleep() # Setiing up a subscriber may take a while ...
 
         print 'Taking off ...'
 
         drone.take_off()
-        rospy.sleep(7)
+        rospy.sleep(5)
         drone.set_start()
         print 'Start position : [{0}, {1}, {2}]'.format(drone.start.position.x, drone.start.position.y, drone.start.position.z)
-        rospy.sleep(3)
+        rospy.sleep(0.25)
 
+        
         drone.do_eight()
 
         print 'Landing ...'
